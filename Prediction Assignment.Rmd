@@ -1,0 +1,134 @@
+---
+title: "Prediction model applied in Human Activity Recognition HAR"
+author: "Uriel Casas"
+date: "8/2/2021"
+output: html_document
+---
+
+##  **Synopsis**
+
+Currently there are various mobile applications and external tools that allow monitoring of human activity. This allows data to be collected to later study them, thus a field dedicated to this called: Human Activity Recognition - HAR. In this project we will try to predict how well a series of physical exercises are performed. We will use various prediction models to find the one that best performs this function.
+
+## **Development**
+
+### *Exploratory analysis*
+
+The packages to be used for the project are:
+
+```{r, warning=FALSE, message=FALSE}
+library(readr)
+library(caret)
+```
+
+**Obtaining the data**
+
+A database was created from various tools that analyze human activity recognition (HAR). This dataset is licensed under the Creative Commons license (CC BY-SA). Source:
+
+"Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6"
+
+We have the data divided into testing and training
+
+```{r ,warning=FALSE, message=FALSE }
+pml_testing <- read_csv("pml-testing.csv")
+pml_training <- read_csv("pml-training.csv")
+dim(pml_testing)
+dim(pml_training)
+```
+
+We create a partition for training and for testing. We add a seed for validation.
+
+```{r ,warning=FALSE, message=FALSE }
+set.seed(2021)
+inTrain <- createDataPartition(y=pml_training$classe, p=0.75, list=FALSE)
+training <- pml_training[inTrain,]
+testing <- pml_training[-inTrain,]
+dim(training)
+dim(testing)
+```
+
+**Cleaning and exploring the data**
+
+Identify the dependent variable: classe.  It contains the values:
+
+* **A** specified execution of the exercise
+* (*B*,*C*,*D*,*E*) common mistakes
+  - **B** throwing the elbows to the front
+  - **C** lifting the dumbbell only halfway
+  - **D** lowering the dumbbell only halfway
+  - **E** throwing the hips to the front
+  
+Some columns are seen to have a large amount of NaN. Columns that do not have enough information are cleaned up.
+
+```{r ,warning=FALSE, message=FALSE }
+vector = NULL
+intervalo <- c(1:length(training))
+for (i in intervalo) {
+        if ((mean(is.na(training[i]))) < 0.9) vector = append(vector,i)
+}
+training = training[vector]
+testing = testing[vector]
+```
+
+We clean the variables that are not necessary for the project.
+
+```{r ,warning=FALSE, message=FALSE }
+training = training[,-c(1:6)]
+testing = testing[,-c(1:6)]
+```
+
+### *Training the model*
+
+After analyzing various classification models, we opted for: random forest. Train function will be used to ensure optimal resampling.
+
+```{r ,warning=FALSE, message=FALSE }
+set.seed(2021)
+modrf <- train(classe~ .,data=training,method="rf")
+```
+
+Below you can see the final model evaluated.
+
+```{r ,warning=FALSE, message=FALSE }
+modrf$finalModel
+```
+
+The accuracy and the OOB error rate (0.22%) show us how reliable our model is.
+
+```{r ,warning=FALSE, message=FALSE }
+modrf$results
+```
+
+### *Cross-validation*
+
+We proceed to validate our model, implementing it in the test set.
+
+```{r ,warning=FALSE, message=FALSE }
+predictionDATA <- predict(modrf,testing)
+```
+
+
+We validate by observing the confusion matrix. 
+
+```{r ,warning=FALSE, message=FALSE }
+confusionM <- confusionMatrix(table(predictionDATA,testing$classe))
+confusionM
+```
+
+
+The Kappa value allows us to observe the error (1- kappa) (1-0.9956) = (0.0044) .
+
+
+### *Prediction in separate set of modeling data*
+
+They provided us with a separate set of modeling data. It works to explain the future data processing that we will implement in the model.
+
+```{r ,warning=FALSE, message=FALSE }
+pml_testing = pml_testing[vector]
+pml_testing = pml_testing[,-c(1:6)]
+predictionDATANEW <- predict(modrf,pml_testing)
+predictionDATANEW
+```
+
+##  **Conclusion**
+
+The decision to use a Random Forest model to apply it in this project responds to specific needs. It is true that interpretability is lost, but in this case it was more important to have a larger prediction area and the model had to respond to classification needs. It is important to say that the best model will depend on particular needs such as interpretability, prediction, data form, technical capabilities of the computer equipment, etc.
+
